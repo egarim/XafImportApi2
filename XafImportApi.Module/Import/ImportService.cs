@@ -46,6 +46,7 @@ namespace XafImportApi.Module.Import
         public int RowsInserted { get; set; }
         public int RowsUpdated { get; set; }
         List<ExceptionData> ExceptionData { get; set; } = new List<ExceptionData>();
+        List<ExceptionData> ValidationErrors { get; set; } = new List<ExceptionData>();
         public ImportResult()
         {
 
@@ -56,61 +57,86 @@ namespace XafImportApi.Module.Import
         public ImportResult Import(IObjectSpace objectSpace, RowDef rowDef)
         {
             ImportResult importResult = new ImportResult();
-            DateTime startTime = DateTime.Now;
-            int ImportedObjects = 0;
-            int CurrentPropertyIndex = 0;
-            int CurrentRowNumber = 0;
-            BinaryOperator CurrentOperator = null;
+            try
+            {
+                DateTime startTime = DateTime.Now;
+                int ImportedObjects = 0;
+                int CurrentPropertyIndex = 0;
+                int CurrentRowNumber = 0;
+                BinaryOperator CurrentOperator = null;
 
-            List<KeyValuePair<int, PropertyInfo>> RefProperties = rowDef.Properties.Where(p => p.Value.PropertyKind == PropertyKind.Reference).ToList();
-            var XpOs = objectSpace as XPObjectSpace;
-            ITypesInfo TypesInfo = XpOs.TypesInfo;
-            var PageSize = 1000;
-            var Pages = GetPageSize(rowDef, PageSize);
-            //Dictionary<PropertyInfo, XPCollection> Collections = new Dictionary<PropertyInfo, XPCollection>();
-            Dictionary<PropertyInfo, List<XPCollection>> Collections = new Dictionary<PropertyInfo, List<XPCollection>>();
-            List<XPCollection> AllCollections = new List<XPCollection>();
-            foreach (KeyValuePair<int, PropertyInfo> RefProp in RefProperties)
-            {
-                List<XPCollection> value = BuildCollection(RefProp, rowDef, XpOs.Session, TypesInfo, PageSize, Pages);
-                foreach (XPCollection xPCollection in value)
+                List<KeyValuePair<int, PropertyInfo>> RefProperties = rowDef.Properties.Where(p => p.Value.PropertyKind == PropertyKind.Reference).ToList();
+                var XpOs = objectSpace as XPObjectSpace;
+                ITypesInfo TypesInfo = XpOs.TypesInfo;
+                var PageSize = 1000;
+                var Pages = GetPageSize(rowDef, PageSize);
+                //Dictionary<PropertyInfo, XPCollection> Collections = new Dictionary<PropertyInfo, XPCollection>();
+                Dictionary<PropertyInfo, List<XPCollection>> Collections = new Dictionary<PropertyInfo, List<XPCollection>>();
+                List<XPCollection> AllCollections = new List<XPCollection>();
+                foreach (KeyValuePair<int, PropertyInfo> RefProp in RefProperties)
                 {
-                    AllCollections.Add(xPCollection);
-                }
-                Collections.Add(RefProp.Value, value);
-                //Collections.Add(RefProp.Value, BuildCollection(RefProp, rowDef, XpOs.Session, TypesInfo, PageSize, Pages));
-            }
-            //XpOs.Session.BulkLoad(Collections.Select(c => c.Value).ToArray());
-            XpOs.Session.BulkLoad(AllCollections.ToArray());
-    
-            foreach (List<object> Row in rowDef.Rows)
-            {
-                var Instance=objectSpace.CreateObject(TypesInfo.FindTypeInfo(rowDef.ObjectType).Type) as XPCustomObject;
-                for (int i = 0; i < Row.Count; i++)
-                {
-                    if(rowDef.Properties[i].PropertyKind==PropertyKind.Primitive)
-                        Instance.SetMemberValue(rowDef.Properties[i].Name, Row[i]);
-                    else
+                    List<XPCollection> value = BuildCollection(RefProp, rowDef, XpOs.Session, TypesInfo, PageSize, Pages);
+                    foreach (XPCollection xPCollection in value)
                     {
-                        CurrentOperator = new BinaryOperator(rowDef.Properties[i].ReferecePropertyLookup, Row[i]);
-                        PropertyInfo propertyInfo = rowDef.Properties[i];
-
-                        List<XPCollection> xPCollections = Collections[propertyInfo];
-                        object CurrentValue = GetValueFromCollection(CurrentOperator, xPCollections);
-                        Instance.SetMemberValue(rowDef.Properties[i].Name, CurrentValue);
-                       
+                        AllCollections.Add(xPCollection);
                     }
+                    Collections.Add(RefProp.Value, value);
+                    //Collections.Add(RefProp.Value, BuildCollection(RefProp, rowDef, XpOs.Session, TypesInfo, PageSize, Pages));
                 }
-                ImportedObjects++;
+                //XpOs.Session.BulkLoad(Collections.Select(c => c.Value).ToArray());
+                XpOs.Session.BulkLoad(AllCollections.ToArray());
+                Dictionary<int,object> IndexObject=new Dictionary<int, object>();
+                foreach (List<object> Row in rowDef.Rows)
+                {
+                    var Instance = objectSpace.CreateObject(TypesInfo.FindTypeInfo(rowDef.ObjectType).Type) as XPCustomObject;
+                    IndexObject.Add(CurrentRowNumber, Instance);
+                    for (int i = 0; i < Row.Count; i++)
+                    {
+                        if (rowDef.Properties[i].PropertyKind == PropertyKind.Primitive)
+                            Instance.SetMemberValue(rowDef.Properties[i].Name, Row[i]);
+                        else
+                        {
+                            CurrentOperator = new BinaryOperator(rowDef.Properties[i].ReferecePropertyLookup, Row[i]);
+                            PropertyInfo propertyInfo = rowDef.Properties[i];
+
+                            List<XPCollection> xPCollections = Collections[propertyInfo];
+                            object CurrentValue = GetValueFromCollection(CurrentOperator, xPCollections);
+                            Instance.SetMemberValue(rowDef.Properties[i].Name, CurrentValue);
+
+                        }
+                    }
+
+                    CurrentRowNumber++;
+                    ImportedObjects++;
+                }
+
+                var Result = Validator.RuleSet.ValidateAllTargets(objectSpace, objectSpace.ModifiedObjects, "Save");
+                if (Result.ValidationOutcome == ValidationOutcome.Valid)
+                {
+
+                    objectSpace.CommitChanges();
+                }
+                else
+                {
+                    IEnumerable<RuleSetValidationResultItem> Errors = Result.Results.Where(r => r.ValidationOutcome == ValidationOutcome.Error);
+                    var Mo = objectSpace.ModifiedObjects.Count;
+                    foreach (object item in Errors.Select(e => e.Target))
+                    {
+                        var Invalid= IndexObject.FirstOrDefault(Io => Io.Value == item);
+                    }
+                    var Mo2 = objectSpace.ModifiedObjects.Count;
+                    objectSpace.CommitChanges();
+                }
+
+                DateTime EndTime = DateTime.Now;
+                importResult.TotalImportTime = EndTime - startTime;
             }
-            DateTime EndTime = DateTime.Now;
-            importResult.TotalImportTime = EndTime - startTime;
-            var Result=  Validator.RuleSet.ValidateAllTargets(objectSpace, objectSpace.ModifiedObjects,"Save");
-            if(Result.ValidationOutcome== ValidationOutcome.Valid)
+            catch (Exception ex)
             {
-                objectSpace.CommitChanges();
+
+                throw;
             }
-         
+           
             return importResult;
 
         }

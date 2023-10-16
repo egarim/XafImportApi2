@@ -52,6 +52,9 @@ namespace XafImportApi.Module.Controllers
             //File.WriteAllText("Test.Data.txt", System.Text.Json.JsonSerializer.Serialize<RowDef>(rowDef));
             //var rowDef = System.Text.Json.JsonSerializer.Deserialize<RowDef>(File.ReadAllText("Test.Data.txt"));
 
+            var Row=CreateRow(10);
+            Row[0]=null;
+            rowDef.Rows.Add(Row);
             var Result= importService.Import(this.Application.CreateObjectSpace(typeof(MainObject)), rowDef);
             Debug.WriteLine($"Import executed in :{Result.TotalImportTime.TotalSeconds}");
         }
@@ -79,36 +82,43 @@ namespace XafImportApi.Module.Controllers
             rowDef.Properties.Add(7, new PropertyInfo() { Name = "RefProp5", PropertyType = typeof(RefObject5).FullName, PropertyKind = PropertyKind.Reference, ReferecePropertyLookup = "Code" });
 
             Random rnd = new Random();
-            for (int i = 0; i < objects-1; i++)
+            for (int i = 1; i <= objects; i++)
             {
-                List<object> row = new List<object>();
-                for (int j = 0; j < 8; j++)
-                {
-                   
-                    if (j == 0)
-                        row.Add("Name" + i);
-                    if (j == 1)
-                        row.Add(DateTime.Now);
-                    if (j == 2)
-                        row.Add(true);
-                    if (j == 3)
-                        row.Add(i.ToString());
-                    if (j == 4)
-                        row.Add(i.ToString());
-                    if (j == 5)
-                        row.Add(i.ToString());
-                    if (j == 6)
-                        row.Add(i.ToString());
-                    if (j == 7)
-                        row.Add(i.ToString());
-
-
-
-                }
+                List<object> row = CreateRow(i);
                 rowDef.Rows.Add(row);
             }
 
             return rowDef;
+        }
+
+        private static List<object> CreateRow(int i)
+        {
+            List<object> row = new List<object>();
+            for (int j = 0; j < 8; j++)
+            {
+
+                if (j == 0)
+                    row.Add("Name" + i);
+                if (j == 1)
+                    row.Add(DateTime.Now);
+                if (j == 2)
+                    row.Add(true);
+                if (j == 3)
+                    row.Add(i.ToString());
+                if (j == 4)
+                    row.Add(i.ToString());
+                if (j == 5)
+                    row.Add(i.ToString());
+                if (j == 6)
+                    row.Add(i.ToString());
+                if (j == 7)
+                    row.Add(i.ToString());
+
+
+
+            }
+
+            return row;
         }
 
         protected override void OnActivated()
