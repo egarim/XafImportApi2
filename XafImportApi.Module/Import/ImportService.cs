@@ -4,6 +4,7 @@ using DevExpress.ExpressApp.DC;
 using DevExpress.ExpressApp.Xpo;
 using DevExpress.Pdf.Native.BouncyCastle.Utilities;
 using DevExpress.Persistent.BaseImpl;
+using DevExpress.Persistent.Validation;
 using DevExpress.Xpo;
 using System;
 using System.Collections.Generic;
@@ -104,7 +105,12 @@ namespace XafImportApi.Module.Import
             }
             DateTime EndTime = DateTime.Now;
             importResult.TotalImportTime = EndTime - startTime;
-            objectSpace.CommitChanges();
+            var Result=  Validator.RuleSet.ValidateAllTargets(objectSpace, objectSpace.ModifiedObjects,"Save");
+            if(Result.ValidationOutcome== ValidationOutcome.Valid)
+            {
+                objectSpace.CommitChanges();
+            }
+         
             return importResult;
 
         }

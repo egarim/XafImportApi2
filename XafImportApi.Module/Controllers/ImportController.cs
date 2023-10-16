@@ -12,6 +12,7 @@ using DevExpress.Persistent.Validation;
 using DevExpress.XtraRichEdit.Export.OpenDocument;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using XafImportApi.Module.BusinessObjects;
@@ -22,6 +23,7 @@ namespace XafImportApi.Module.Controllers
     // For more typical usage scenarios, be sure to check out https://documentation.devexpress.com/eXpressAppFramework/clsDevExpressExpressAppViewControllertopic.aspx.
     public partial class ImportController : ViewController
     {
+        ParametrizedAction ImportObjects;
         SimpleAction DeleteImportedData;
         private const int MaxValue = 100;
         SimpleAction ImportData;
@@ -30,13 +32,28 @@ namespace XafImportApi.Module.Controllers
         public ImportController()
         {
             InitializeComponent();
-            ImportData = new SimpleAction(this, "Import", "View");
-            ImportData.Execute += ImportData_Execute;
+          
 
-            DeleteImportedData = new SimpleAction(this, "MyAction", "View");
+            DeleteImportedData = new SimpleAction(this, "Delete objects", "View");
             DeleteImportedData.Execute += DeleteImportedData_Execute;
+
+
+            ImportObjects = new ParametrizedAction(this, "Import Objects", "View", typeof(int));
+            ImportObjects.Execute += ImportObjects_Execute;
             
             // Target required Views (via the TargetXXX properties) and create their Actions.
+        }
+        private void ImportObjects_Execute(object sender, ParametrizedActionExecuteEventArgs e)
+        {
+            var parameterValue = (int)e.ParameterCurrentValue;
+            ImportService importService = new ImportService();
+            RowDef rowDef = CreateTestData(parameterValue);
+            //var rowsCount = rowDef.Rows.Count;
+            //File.WriteAllText("Test.Data.txt", System.Text.Json.JsonSerializer.Serialize<RowDef>(rowDef));
+            //var rowDef = System.Text.Json.JsonSerializer.Deserialize<RowDef>(File.ReadAllText("Test.Data.txt"));
+
+            var Result= importService.Import(this.Application.CreateObjectSpace(typeof(MainObject)), rowDef);
+            Debug.WriteLine($"Import executed in :{Result.TotalImportTime.TotalSeconds}");
         }
         private void DeleteImportedData_Execute(object sender, SimpleActionExecuteEventArgs e)
         {
@@ -45,17 +62,10 @@ namespace XafImportApi.Module.Controllers
         }
         private void ImportData_Execute(object sender, SimpleActionExecuteEventArgs e)
         {
-            ImportService importService = new ImportService();
-            RowDef rowDef = CreateTestData();
-            //var rowsCount = rowDef.Rows.Count;
-            //File.WriteAllText("Test.Data.txt", System.Text.Json.JsonSerializer.Serialize<RowDef>(rowDef));
-            //var rowDef = System.Text.Json.JsonSerializer.Deserialize<RowDef>(File.ReadAllText("Test.Data.txt"));
-
-            importService.Import(this.Application.CreateObjectSpace(typeof(MainObject)), rowDef);
-            // Execute your business logic (https://docs.devexpress.com/eXpressAppFramework/112737/).
+          
         }
 
-        private static RowDef CreateTestData()
+        private static RowDef CreateTestData(int objects)
         {
             RowDef rowDef = new RowDef();
             rowDef.ObjectType = typeof(MainObject).FullName;
@@ -69,7 +79,7 @@ namespace XafImportApi.Module.Controllers
             rowDef.Properties.Add(7, new PropertyInfo() { Name = "RefProp5", PropertyType = typeof(RefObject5).FullName, PropertyKind = PropertyKind.Reference, ReferecePropertyLookup = "Code" });
 
             Random rnd = new Random();
-            for (int i = 0; i < 5000; i++)
+            for (int i = 0; i < objects-1; i++)
             {
                 List<object> row = new List<object>();
                 for (int j = 0; j < 8; j++)

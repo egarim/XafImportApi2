@@ -43,6 +43,7 @@ namespace XafImportApi.Module.BusinessObjects
         DateTime date;
         string name;
 
+        [RuleRequiredField("Rule Required",DefaultContexts.Save)]
         [Size(SizeAttribute.DefaultStringMappingFieldSize)]
         public string Name
         {
@@ -61,7 +62,7 @@ namespace XafImportApi.Module.BusinessObjects
             get => active;
             set => SetPropertyValue(nameof(Active), ref active, value);
         }
-
+        [RuleUniqueValue("Unique value",DefaultContexts.Save)]
         public RefObject1 RefProp1
         {
             get => refProp1;
