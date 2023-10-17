@@ -13,6 +13,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XafImportApi.Win", "XafImpo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "XafImportApi.Blazor.Server", "XafImportApi.Blazor.Server\XafImportApi.Blazor.Server.csproj", "{258F92C6-CA9F-48FA-BC99-1174B6A44893}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FunctionalTest", "FunctionalTest\FunctionalTest.csproj", "{EEFF4EC3-C8E5-4E26-89BC-AE11B73E8AE8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +52,12 @@ Global
 		{258F92C6-CA9F-48FA-BC99-1174B6A44893}.EasyTest|Any CPU.Build.0 = EasyTest|Any CPU
 		{258F92C6-CA9F-48FA-BC99-1174B6A44893}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{258F92C6-CA9F-48FA-BC99-1174B6A44893}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EEFF4EC3-C8E5-4E26-89BC-AE11B73E8AE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EEFF4EC3-C8E5-4E26-89BC-AE11B73E8AE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EEFF4EC3-C8E5-4E26-89BC-AE11B73E8AE8}.EasyTest|Any CPU.ActiveCfg = Debug|Any CPU
+		{EEFF4EC3-C8E5-4E26-89BC-AE11B73E8AE8}.EasyTest|Any CPU.Build.0 = Debug|Any CPU
+		{EEFF4EC3-C8E5-4E26-89BC-AE11B73E8AE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EEFF4EC3-C8E5-4E26-89BC-AE11B73E8AE8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

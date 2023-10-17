@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using XafImportApi.Module.BusinessObjects;
 using static DevExpress.Drawing.Printing.Internal.DXPageSizeInfo;
 
 namespace XafImportApi.Module.Import
@@ -23,10 +24,11 @@ namespace XafImportApi.Module.Import
     }
     public class PropertyInfo
     {
-        public string Name { get; set; }
+        public string PropertyName { get; set; }
         public string PropertyType { get; set; }
         public PropertyKind PropertyKind { get; set; }
-        public string ReferecePropertyLookup { get; set; }
+        public string ReferencePropertyLookup { get; set; }
+        public bool IsBusinessKey { get; set; }
     }
     public class RowDef
     {
@@ -52,9 +54,17 @@ namespace XafImportApi.Module.Import
 
         }
     }
+    public enum ImportMode
+    {
+        InsertUpdate,
+        Insert,
+        Update
+    }
+    
     public class ImportService
     {
-        public ImportResult Import(IObjectSpace objectSpace, RowDef rowDef)
+        List<XPCollection> objectsToUpdate = null;
+        public ImportResult Import(IObjectSpace objectSpace, RowDef rowDef, ImportMode importMode)
         {
             ImportResult importResult = new ImportResult();
             try
@@ -70,9 +80,16 @@ namespace XafImportApi.Module.Import
                 ITypesInfo TypesInfo = XpOs.TypesInfo;
                 var PageSize = 1000;
                 var Pages = GetPageSize(rowDef, PageSize);
-                //Dictionary<PropertyInfo, XPCollection> Collections = new Dictionary<PropertyInfo, XPCollection>();
+               
+
                 Dictionary<PropertyInfo, List<XPCollection>> Collections = new Dictionary<PropertyInfo, List<XPCollection>>();
                 List<XPCollection> AllCollections = new List<XPCollection>();
+
+                var Key=rowDef.Properties.FirstOrDefault(p=> p.Value.IsBusinessKey);
+
+                KeyValuePair<int, PropertyInfo> KeyProperty = new KeyValuePair<int, PropertyInfo>(Key.Key, new PropertyInfo() { PropertyName = Key.Value.PropertyName, PropertyType = rowDef.ObjectType, PropertyKind = PropertyKind.Reference, ReferencePropertyLookup = Key.Value.PropertyName });
+                objectsToUpdate = BuildCollection(KeyProperty, rowDef, XpOs.Session, TypesInfo, PageSize, Pages);
+
                 foreach (KeyValuePair<int, PropertyInfo> RefProp in RefProperties)
                 {
                     List<XPCollection> value = BuildCollection(RefProp, rowDef, XpOs.Session, TypesInfo, PageSize, Pages);
@@ -81,27 +98,41 @@ namespace XafImportApi.Module.Import
                         AllCollections.Add(xPCollection);
                     }
                     Collections.Add(RefProp.Value, value);
-                    //Collections.Add(RefProp.Value, BuildCollection(RefProp, rowDef, XpOs.Session, TypesInfo, PageSize, Pages));
+                  
                 }
-                //XpOs.Session.BulkLoad(Collections.Select(c => c.Value).ToArray());
+                if(objectsToUpdate!=null)
+                {
+                    AllCollections.AddRange(objectsToUpdate);
+                }
+
                 XpOs.Session.BulkLoad(AllCollections.ToArray());
+
                 Dictionary<int,object> IndexObject=new Dictionary<int, object>();
                 foreach (List<object> Row in rowDef.Rows)
                 {
-                    var Instance = objectSpace.CreateObject(TypesInfo.FindTypeInfo(rowDef.ObjectType).Type) as XPCustomObject;
+                    var KeyValue = Row[Key.Key];
+                    var Instance = GetObjectInstance(objectSpace, rowDef.ObjectType, TypesInfo,importMode,KeyValue, KeyProperty.Value.PropertyName) as XPCustomObject;
+
                     IndexObject.Add(CurrentRowNumber, Instance);
                     for (int i = 0; i < Row.Count; i++)
                     {
+
+#if DEBUG
+
+                        Debug.WriteLine($"Current Index:{i} Current Property{rowDef.Properties[i].PropertyName}");
+#endif
+
+
                         if (rowDef.Properties[i].PropertyKind == PropertyKind.Primitive)
-                            Instance.SetMemberValue(rowDef.Properties[i].Name, Row[i]);
+                            Instance.SetMemberValue(rowDef.Properties[i].PropertyName, Row[i]);
                         else
                         {
-                            CurrentOperator = new BinaryOperator(rowDef.Properties[i].ReferecePropertyLookup, Row[i]);
+                            CurrentOperator = new BinaryOperator(rowDef.Properties[i].ReferencePropertyLookup, Row[i]);
                             PropertyInfo propertyInfo = rowDef.Properties[i];
 
                             List<XPCollection> xPCollections = Collections[propertyInfo];
                             object CurrentValue = GetValueFromCollection(CurrentOperator, xPCollections);
-                            Instance.SetMemberValue(rowDef.Properties[i].Name, CurrentValue);
+                            Instance.SetMemberValue(rowDef.Properties[i].PropertyName, CurrentValue);
 
                         }
                     }
@@ -141,7 +172,42 @@ namespace XafImportApi.Module.Import
 
         }
 
-        private static object GetValueFromCollection(BinaryOperator CurrentOperator, List<XPCollection> xPCollections)
+        protected virtual object GetObjectInstance(IObjectSpace objectSpace, string ObjectType, ITypesInfo TypesInfo, ImportMode importMode,object keyValue,string keyPropertyName)
+        {
+            var CurrentOperator = new BinaryOperator(keyPropertyName, keyValue);
+
+            if (importMode== ImportMode.Insert)
+            {
+                return objectSpace.CreateObject(TypesInfo.FindTypeInfo(ObjectType).Type);
+            }
+            if (importMode == ImportMode.InsertUpdate)
+            {
+                if(this.objectsToUpdate!=null)
+                {
+                  
+                   var returnValue= GetValueFromCollection(CurrentOperator, this.objectsToUpdate);
+                    if (returnValue != null)
+                        return returnValue;
+                    else 
+                    {
+                        return objectSpace.CreateObject(TypesInfo.FindTypeInfo(ObjectType).Type);
+                    }
+                }
+                else
+                {
+                    return objectSpace.CreateObject(TypesInfo.FindTypeInfo(ObjectType).Type);
+                }
+               
+            }
+            if (importMode == ImportMode.Update)
+            {
+                return GetValueFromCollection(CurrentOperator, this.objectsToUpdate);
+            }
+            return null;
+
+        }
+
+        private object GetValueFromCollection(BinaryOperator CurrentOperator, List<XPCollection> xPCollections)
         {
            
             foreach (XPCollection xPCollection in xPCollections)
@@ -197,7 +263,7 @@ namespace XafImportApi.Module.Import
             for (int i = 0; i < pages; i++)
             {
                 List<object> values = GetValues(rowDef, i + 1, pageSize, RefProperties.Key);
-                operators.Add(new InOperator(RefProperties.Value.ReferecePropertyLookup, values));
+                operators.Add(new InOperator(RefProperties.Value.ReferencePropertyLookup, values));
             }
 
             return operators;

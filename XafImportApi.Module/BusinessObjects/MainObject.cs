@@ -34,6 +34,7 @@ namespace XafImportApi.Module.BusinessObjects
             // Place your initialization code here (https://documentation.devexpress.com/eXpressAppFramework/CustomDocument112834.aspx).
         }
 
+        string code;
         RefObject5 refProp5;
         RefObject4 refProp4;
         RefObject3 refProp3;
@@ -43,7 +44,7 @@ namespace XafImportApi.Module.BusinessObjects
         DateTime date;
         string name;
 
-        [RuleRequiredField("Rule Required",DefaultContexts.Save)]
+        [RuleRequiredField("Rule Required", DefaultContexts.Save)]
         [Size(SizeAttribute.DefaultStringMappingFieldSize)]
         public string Name
         {
@@ -62,7 +63,7 @@ namespace XafImportApi.Module.BusinessObjects
             get => active;
             set => SetPropertyValue(nameof(Active), ref active, value);
         }
-        [RuleUniqueValue("Unique value",DefaultContexts.Save)]
+        [RuleUniqueValue("Unique value", DefaultContexts.Save)]
         public RefObject1 RefProp1
         {
             get => refProp1;
@@ -86,12 +87,19 @@ namespace XafImportApi.Module.BusinessObjects
             get => refProp4;
             set => SetPropertyValue(nameof(RefProp4), ref refProp4, value);
         }
-        
+
         public RefObject5 RefProp5
 
         {
             get => refProp5;
             set => SetPropertyValue(nameof(RefProp5), ref refProp5, value);
+        }
+        
+        [Size(SizeAttribute.DefaultStringMappingFieldSize)]
+        public string Code
+        {
+            get => code;
+            set => SetPropertyValue(nameof(Code), ref code, value);
         }
     }
 }
